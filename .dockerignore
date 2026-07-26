@@ -1,0 +1,15 @@
+.git/
+.github/
+venv/
+__pycache__/
+*.pyc
+tests/
+dashboard/
+data/
+docs/
+
+# The image needs only the serving table; the other parquet files are pipeline
+# intermediates the API never reads. Exclude them but keep the one COPY needs,
+# otherwise the COPY in the Dockerfile has nothing to find.
+outputs/*
+!outputs/threat_scores_serving.parquet

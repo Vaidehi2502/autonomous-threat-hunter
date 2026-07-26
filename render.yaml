@@ -1,0 +1,53 @@
+# Render blueprint: FastAPI backend + static SOC dashboard.
+#
+# Deploy: render.com -> New -> Blueprint -> select this repository.
+# Both services come up together and are already wired to each other, so no
+# manual environment variables are needed after the first sync.
+#
+# API memory: measured in a cgroup-limited container, the API uses ~330 MiB and
+# fits the 512 MB free instance. Verified by running the image under hard caps:
+# 256m is OOM-killed, 384m boots and serves every endpoint, 512m leaves
+# headroom.
+#
+# This depends on outputs/threat_scores_serving.parquet existing (see
+# src/prepare_serving.py). Against detect.py's raw output the API still works,
+# but a single timeline lookup decodes a 1,048,576-row group and needs ~640 MB.
+#
+# Keep the API to a single worker -- each worker loads its own copy of the
+# flagged table.
+
+services:
+  - type: web
+    name: threat-hunter-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /
+    envVars:
+      # numpy 2.5.1 is published for Python 3.12+ only.
+      - key: PYTHON_VERSION
+        value: "3.13.5"
+      # The dashboard's origin. Must match the static site's URL below exactly
+      # -- scheme included, no trailing slash -- or the browser blocks every
+      # request. localhost origins are always allowed regardless.
+      - key: CORS_ALLOW_ORIGINS
+        value: https://threat-hunter-dashboard.onrender.com
+
+  - type: web
+    name: threat-hunter-dashboard
+    runtime: static
+    rootDir: dashboard
+    buildCommand: npm install && npm run build
+    # Relative to rootDir, so dashboard/dist.
+    staticPublishPath: dist
+    envVars:
+      # Vite inlines this at BUILD time, not run time. Changing it therefore
+      # requires a rebuild, not just a restart.
+      - key: VITE_API_BASE
+        value: https://threat-hunter-api.onrender.com
+    routes:
+      # Single-page app: serve index.html rather than 404 on unknown paths.
+      - type: rewrite
+        source: /*
+        destination: /index.html
