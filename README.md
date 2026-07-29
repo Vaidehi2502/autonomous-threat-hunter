@@ -5,7 +5,7 @@ system that autonomously surfaces suspicious insider behavior (logons, device
 usage, off-hours activity) from raw enterprise logs, without relying on a
 single black-box model that security teams can't trust or explain.
 
-Built solo in a 24-hour hackathon on the CERT Insider Threat dataset (r4.2,
+Built in a 24-hour hackathon on the CERT Insider Threat dataset (r4.2,
 ~4,000 users, ~1.5 years of logon + device activity).
 
 ## Live deployment
